@@ -1,0 +1,307 @@
+// Schema Prisma Completo - Sistema Universidade Lusíada
+// Baseado no diagrama fornecido
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========================================
+// SISTEMA DE UTILIZADORES E AUTENTICAÇÃO
+// ========================================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Tabela: usuarios
+model User {
+  id               String   @id @default(cuid()) @map("id_usuario")
+  nome             String   @db.VarChar(255)
+  email            String   @unique @db.VarChar(255)
+  senha            String?  @db.VarChar(255)
+  tipoUsuario      String   @map("tipo_usuario") @db.VarChar(50)
+  estado           String   @db.VarChar(50)
+  genero           String?  @db.Char(1)
+  dataNascimento   DateTime? @map("data_nascimento") @db.Date
+  telefone         String?  @db.VarChar(20)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relacionamentos NextAuth
+  accounts         Account[]
+  sessions         Session[]
+  
+  // Relacionamentos do sistema
+  matriculas       Matricula[]
+  pagamentos       Pagamento[]
+  inscricoes       Inscricao[]
+  notas            Nota[]
+
+  @@map("usuarios")
+}
+
+// Tabela: tipo_usuario
+model TipoUsuario {
+  id              String @id @default(cuid()) @map("id_usuario")
+  identificacao   String @db.VarChar(100)
+  departamento    String @db.VarChar(100)
+  numeroEstudante String? @map("numero_estudante") @db.VarChar(50)
+  cargo           String? @db.VarChar(100)
+  setor           String? @db.VarChar(100)
+  nivelAcesso     Int?   @map("nivel_acesso")
+
+  @@map("tipo_usuario")
+}
+
+// ========================================
+// ESTRUTURA ACADÉMICA
+// ========================================
+
+// Tabela: departamentos
+model Departamento {
+  id        String @id @default(cuid()) @map("id_departamento")
+  nome      String @db.VarChar(255)
+  descricao String? @db.Text
+
+  // Relacionamentos
+  cursos    Curso[]
+
+  @@map("departamentos")
+}
+
+// Tabela: cursos
+model Curso {
+  id              String @id @default(cuid()) @map("id_curso")
+  nome            String @db.VarChar(255)
+  descricao       String? @db.Text
+  nivel           String @db.VarChar(100)
+  duracaoAnos     Int    @map("duracao_anos")
+  departamentoId  String @map("id_departamento")
+
+  // Relacionamentos
+  departamento    Departamento @relation(fields: [departamentoId], references: [id])
+  disciplinas     Disciplina[]
+  matriculas      Matricula[]
+  turmas          Turma[]
+
+  @@map("cursos")
+}
+
+// Tabela: disciplinas
+model Disciplina {
+  id           String @id @default(cuid()) @map("id_disciplina")
+  nome         String @db.VarChar(255)
+  descricao    String? @db.Text
+  cargaHoraria Int    @map("carga_horaria")
+  semestre     Int
+  cursoId      String @map("id_curso")
+
+  // Relacionamentos
+  curso            Curso @relation(fields: [cursoId], references: [id])
+  turmaDisciplinas TurmaDisciplina[]
+  notas            Nota[]
+
+  @@map("disciplinas")
+}
+
+// Tabela: turmas
+model Turma {
+  id          String @id @default(cuid()) @map("id_turma")
+  cursoId     String @map("id_curso")
+  ano         Int
+  semestre    Int
+  descricao   String? @db.VarChar(255)
+
+  // Relacionamentos
+  curso            Curso @relation(fields: [cursoId], references: [id])
+  turmaDisciplinas TurmaDisciplina[]
+  matriculas       Matricula[]
+
+  @@map("turmas")
+}
+
+// Tabela: turma_disciplinas (tabela de junção)
+model TurmaDisciplina {
+  id           String @id @default(cuid()) @map("id_turma")
+  disciplinaId String @map("id_disciplina")
+  professorId  String @map("id_professor")
+  diaSemana    String @map("dia_semana") @db.VarChar(20)
+  horarioInicio String @map("horario_inicio") @db.Time
+  horarioFim   String @map("horario_fim") @db.Time
+
+  // Relacionamentos
+  disciplina   Disciplina @relation(fields: [disciplinaId], references: [id])
+  turma        Turma @relation(fields: [id], references: [id])
+
+  @@map("turma_disciplinas")
+}
+
+// ========================================
+// SISTEMA DE MATRÍCULAS E INSCRIÇÕES
+// ========================================
+
+// Tabela: matriculas
+model Matricula {
+  id            String   @id @default(cuid()) @map("id_matricula")
+  usuarioId     String   @map("id_usuario")
+  turmaId       String   @map("id_turma")
+  cursoId       String   @map("id_curso")
+  ano           Int
+  semestre      Int
+  dataMatricula DateTime @map("data_matricula") @db.Date
+  estado        String   @db.VarChar(50)
+
+  // Relacionamentos
+  usuario       User @relation(fields: [usuarioId], references: [id])
+  turma         Turma @relation(fields: [turmaId], references: [id])
+  curso         Curso @relation(fields: [cursoId], references: [id])
+
+  @@map("matriculas")
+}
+
+// Tabela: inscricoes
+model Inscricao {
+  id           String   @id @default(cuid()) @map("id_inscricao")
+  matriculaId  String   @map("id_matricula")
+  disciplinaId String   @map("id_disciplina")
+  dataInscricao DateTime @map("data_inscricao") @db.Date
+  notaFinal    Float?   @map("nota_final")
+  estado       String   @db.VarChar(50)
+
+  // Relacionamentos
+  usuario      User @relation(fields: [matriculaId], references: [id])
+
+  @@map("inscricoes")
+}
+
+// ========================================
+// SISTEMA DE AVALIAÇÃO
+// ========================================
+
+// Tabela: notas
+model Nota {
+  id           String @id @default(cuid()) @map("id_nota")
+  inscricaoId  String @map("id_inscricao")
+  descricao    String @db.VarChar(255)
+  valor        Float
+
+  // Relacionamentos
+  usuario      User @relation(fields: [inscricaoId], references: [id])
+  disciplina   Disciplina @relation(fields: [inscricaoId], references: [id])
+
+  @@map("notas")
+}
+
+// ========================================
+// SISTEMA FINANCEIRO
+// ========================================
+
+// Tabela: propinas
+model Propina {
+  id             String    @id @default(cuid()) @map("id_propina")
+  usuarioId      String    @map("id_usuario")
+  periodo        String    @db.VarChar(50)
+  valor          Decimal   @db.Decimal(10,2)
+  dataEmissao    DateTime  @map("data_emissao") @db.Date
+  estado         String    @db.VarChar(50)
+  multa          Decimal?  @db.Decimal(10,2)
+
+  // Relacionamentos
+  pagamentos     Pagamento[]
+
+  @@map("propinas")
+}
+
+// Tabela: pagamentos
+model Pagamento {
+  id              String   @id @default(cuid()) @map("id_pagamento")
+  propinaId       String   @map("id_propina")
+  dataPagamento   DateTime @map("data_pagamento") @db.Date
+  valorPago       Decimal  @map("valor_pago") @db.Decimal(10,2)
+  metodoPagamento String   @map("metodo_pagamento") @db.VarChar(50)
+  recibo          String?  @db.VarChar(255)
+
+  // Relacionamentos
+  usuario         User @relation(fields: [propinaId], references: [id])
+  propina         Propina @relation(fields: [propinaId], references: [id])
+
+  @@map("pagamentos")
+}
+
+// ========================================
+// ENUMS
+// ========================================
+
+enum TipoUsuarioEnum {
+  ESTUDANTE
+  PROFESSOR
+  ADMIN
+  FUNCIONARIO
+}
+
+enum EstadoMatricula {
+  ATIVA
+  SUSPENSA
+  CANCELADA
+  CONCLUIDA
+}
+
+enum EstadoPagamento {
+  PENDENTE
+  PAGO
+  VENCIDO
+  CANCELADO
+}
+
+enum MetodoPagamento {
+  DINHEIRO
+  TRANSFERENCIA
+  MULTICAIXA
+  CARTAO
+  CHEQUE
+}
+
+enum NivelCurso {
+  LICENCIATURA
+  MESTRADO
+  DOUTORAMENTO
+  CERTIFICADO
+  POS_GRADUACAO
+} 

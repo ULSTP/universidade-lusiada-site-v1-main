@@ -1,0 +1,454 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ========================================
+// MODELOS DE AUTENTICAÇÃO E USUÁRIOS
+// ========================================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          UserRole  @default(STUDENT)
+  status        UserStatus @default(ACTIVE)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relacionamentos
+  accounts      Account[]
+  sessions      Session[]
+  student       Student?
+  teacher       Teacher?
+  admin         Admin?
+  notifications Notification[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ========================================
+// MODELOS ACADÊMICOS
+// ========================================
+
+model Student {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  studentId    String   @unique // Matrícula
+  firstName    String
+  lastName     String
+  dateOfBirth  DateTime
+  nationality  String
+  address      String?
+  phone        String?
+  emergencyContact String?
+  emergencyPhone   String?
+  enrollmentDate DateTime @default(now())
+  graduationDate DateTime?
+  status       StudentStatus @default(ENROLLED)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enrollments  Enrollment[]
+  grades       Grade[]
+  documents    Document[]
+  attendance   Attendance[]
+}
+
+model Teacher {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  employeeId   String   @unique
+  firstName    String
+  lastName     String
+  specialization String
+  department   String
+  hireDate     DateTime @default(now())
+  status       TeacherStatus @default(ACTIVE)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courses      Course[]
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  employeeId   String   @unique
+  firstName    String
+  lastName     String
+  department   String
+  permissions  String? // Permissões como JSON string
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ========================================
+// MODELOS DE CURSOS E DISCIPLINAS
+// ========================================
+
+model Course {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  name            String
+  description     String?
+  credits         Int
+  duration        Int      // Em semestres
+  level           CourseLevel
+  status          CourseStatus @default(ACTIVE)
+  maxStudents     Int?
+  currentStudents Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relacionamentos
+  teacher         Teacher? @relation(fields: [teacherId], references: [id])
+  teacherId       String?
+  subjects        Subject[]
+  enrollments     Enrollment[]
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  credits     Int
+  semester    Int
+  year        Int
+  status      SubjectStatus @default(ACTIVE)
+  maxStudents Int?
+  currentStudents Int @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  enrollments Enrollment[]
+  grades      Grade[]
+  attendance  Attendance[]
+}
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  studentId String
+  courseId  String
+  subjectId String?
+  semester  Int
+  year      Int
+  status    EnrollmentStatus @default(ACTIVE)
+  grade     Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  subject   Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, courseId, semester, year])
+}
+
+// ========================================
+// MODELOS DE NOTAS E FREQUÊNCIA
+// ========================================
+
+model Grade {
+  id        String   @id @default(cuid())
+  studentId String
+  subjectId String
+  type      GradeType
+  value     Float
+  weight    Float    @default(1.0)
+  date      DateTime @default(now())
+  comments  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+}
+
+model Attendance {
+  id        String   @id @default(cuid())
+  studentId String
+  subjectId String
+  date      DateTime
+  status    AttendanceStatus
+  createdAt DateTime @default(now())
+
+  // Relacionamentos
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subjectId, date])
+}
+
+// ========================================
+// MODELOS DE DOCUMENTOS
+// ========================================
+
+model Document {
+  id          String   @id @default(cuid())
+  studentId   String
+  type        DocumentType
+  title       String
+  description String?
+  fileUrl     String
+  fileSize    Int
+  mimeType    String
+  status      DocumentStatus @default(PENDING)
+  requestedAt DateTime @default(now())
+  processedAt DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+// ========================================
+// MODELOS DE EVENTOS E NOTIFICAÇÕES
+// ========================================
+
+model Event {
+  id              String   @id @default(cuid())
+  title           String
+  description     String?
+  startDate       DateTime
+  endDate         DateTime
+  location        String?
+  maxParticipants Int?
+  currentParticipants Int @default(0)
+  type            EventType
+  status          EventStatus @default(UPCOMING)
+  published       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relacionamentos
+  participants    EventParticipant[]
+}
+
+model EventParticipant {
+  id        String   @id @default(cuid())
+  eventId   String
+  name      String
+  email     String
+  phone     String
+  createdAt DateTime @default(now())
+
+  // Relacionamentos
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, email])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      NotificationType
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relacionamentos
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ========================================
+// MODELOS DE NEWSLETTER E CONTATO
+// ========================================
+
+model Newsletter {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  status    ContactStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ========================================
+// ENUMS
+// ========================================
+
+enum UserRole {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum StudentStatus {
+  ENROLLED
+  GRADUATED
+  DROPPED
+  TRANSFERRED
+}
+
+enum TeacherStatus {
+  ACTIVE
+  INACTIVE
+  RETIRED
+}
+
+enum CourseLevel {
+  BACHELOR
+  MASTER
+  DOCTORATE
+  CERTIFICATE
+}
+
+enum CourseStatus {
+  ACTIVE
+  INACTIVE
+  DISCONTINUED
+}
+
+enum SubjectStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  DROPPED
+  FAILED
+}
+
+enum GradeType {
+  EXAM
+  ASSIGNMENT
+  PARTICIPATION
+  FINAL
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum DocumentType {
+  DECLARATION_MATRICULA
+  HISTORICO_ESCOLAR
+  CERTIFICADO_CONCLUSAO
+  DECLARATION_FREQUENCIA
+  CARTA_RECOMENDACAO
+  OUTROS
+}
+
+enum DocumentStatus {
+  PENDING
+  PROCESSING
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+enum EventType {
+  ACADEMIC
+  SOCIAL
+  CULTURAL
+  SPORTS
+  WORKSHOP
+  CONFERENCE
+}
+
+enum EventStatus {
+  UPCOMING
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  SUCCESS
+  ERROR
+}
+
+enum ContactStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}

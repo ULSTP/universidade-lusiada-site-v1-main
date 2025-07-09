@@ -1,0 +1,272 @@
+// Schema Prisma Completo - Sistema Universidade Lusíada
+// Versão SQLite (compatível com sistema atual)
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ========================================
+// SISTEMA DE UTILIZADORES E AUTENTICAÇÃO
+// ========================================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Tabela: usuarios
+model User {
+  id               String   @id @default(cuid()) @map("id_usuario")
+  nome             String
+  email            String   @unique
+  senha            String?
+  tipoUsuario      String   @map("tipo_usuario")
+  estado           String
+  genero           String?
+  dataNascimento   DateTime? @map("data_nascimento")
+  telefone         String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relacionamentos NextAuth
+  accounts         Account[]
+  sessions         Session[]
+  
+  // Relacionamentos do sistema
+  matriculas       Matricula[]
+  pagamentos       Pagamento[] @relation("PagamentosUsuario")
+  inscricoes       Inscricao[]
+  notas            Nota[] @relation("NotasUsuario")
+  propinas         Propina[]
+
+  @@map("usuarios")
+}
+
+// Tabela: tipo_usuario
+model TipoUsuario {
+  id              String @id @default(cuid()) @map("id_usuario")
+  identificacao   String
+  departamento    String
+  numeroEstudante String? @map("numero_estudante")
+  cargo           String?
+  setor           String?
+  nivelAcesso     Int?   @map("nivel_acesso")
+
+  @@map("tipo_usuario")
+}
+
+// ========================================
+// ESTRUTURA ACADÉMICA
+// ========================================
+
+// Tabela: departamentos
+model Departamento {
+  id        String @id @default(cuid()) @map("id_departamento")
+  nome      String
+  descricao String?
+
+  // Relacionamentos
+  cursos    Curso[]
+
+  @@map("departamentos")
+}
+
+// Tabela: cursos
+model Curso {
+  id              String @id @default(cuid()) @map("id_curso")
+  nome            String
+  descricao       String?
+  nivel           String
+  duracaoAnos     Int    @map("duracao_anos")
+  departamentoId  String @map("id_departamento")
+
+  // Relacionamentos
+  departamento    Departamento @relation(fields: [departamentoId], references: [id])
+  disciplinas     Disciplina[]
+  matriculas      Matricula[]
+  turmas          Turma[]
+
+  @@map("cursos")
+}
+
+// Tabela: disciplinas
+model Disciplina {
+  id           String @id @default(cuid()) @map("id_disciplina")
+  nome         String
+  descricao    String?
+  cargaHoraria Int    @map("carga_horaria")
+  semestre     Int
+  cursoId      String @map("id_curso")
+
+  // Relacionamentos
+  curso            Curso @relation(fields: [cursoId], references: [id])
+  turmaDisciplinas TurmaDisciplina[]
+  notas            Nota[] @relation("NotasDisciplina")
+
+  @@map("disciplinas")
+}
+
+// Tabela: turmas
+model Turma {
+  id          String @id @default(cuid()) @map("id_turma")
+  cursoId     String @map("id_curso")
+  ano         Int
+  semestre    Int
+  descricao   String?
+
+  // Relacionamentos
+  curso            Curso @relation(fields: [cursoId], references: [id])
+  turmaDisciplinas TurmaDisciplina[]
+  matriculas       Matricula[]
+
+  @@map("turmas")
+}
+
+// Tabela: turma_disciplinas (tabela de junção)
+model TurmaDisciplina {
+  id           String @id @default(cuid()) @map("id_turma_disciplina")
+  turmaId      String @map("id_turma")
+  disciplinaId String @map("id_disciplina")
+  professorId  String @map("id_professor")
+  diaSemana    String @map("dia_semana")
+  horarioInicio String @map("horario_inicio")
+  horarioFim   String @map("horario_fim")
+
+  // Relacionamentos
+  disciplina   Disciplina @relation(fields: [disciplinaId], references: [id])
+  turma        Turma @relation(fields: [turmaId], references: [id])
+
+  @@map("turma_disciplinas")
+}
+
+// ========================================
+// SISTEMA DE MATRÍCULAS E INSCRIÇÕES
+// ========================================
+
+// Tabela: matriculas
+model Matricula {
+  id            String   @id @default(cuid()) @map("id_matricula")
+  usuarioId     String   @map("id_usuario")
+  turmaId       String   @map("id_turma")
+  cursoId       String   @map("id_curso")
+  ano           Int
+  semestre      Int
+  dataMatricula DateTime @map("data_matricula")
+  estado        String
+
+  // Relacionamentos
+  usuario       User @relation(fields: [usuarioId], references: [id])
+  turma         Turma @relation(fields: [turmaId], references: [id])
+  curso         Curso @relation(fields: [cursoId], references: [id])
+
+  @@map("matriculas")
+}
+
+// Tabela: inscricoes
+model Inscricao {
+  id           String   @id @default(cuid()) @map("id_inscricao")
+  matriculaId  String   @map("id_matricula")
+  disciplinaId String   @map("id_disciplina")
+  dataInscricao DateTime @map("data_inscricao")
+  notaFinal    Float?   @map("nota_final")
+  estado       String
+
+  // Relacionamentos
+  usuario      User @relation(fields: [matriculaId], references: [id])
+
+  @@map("inscricoes")
+}
+
+// ========================================
+// SISTEMA DE AVALIAÇÃO
+// ========================================
+
+// Tabela: notas
+model Nota {
+  id           String @id @default(cuid()) @map("id_nota")
+  inscricaoId  String @map("id_inscricao")
+  disciplinaId String @map("id_disciplina")
+  usuarioId    String @map("id_usuario")
+  descricao    String
+  valor        Float
+
+  // Relacionamentos
+  usuario      User @relation("NotasUsuario", fields: [usuarioId], references: [id])
+  disciplina   Disciplina @relation("NotasDisciplina", fields: [disciplinaId], references: [id])
+
+  @@map("notas")
+}
+
+// ========================================
+// SISTEMA FINANCEIRO
+// ========================================
+
+// Tabela: propinas
+model Propina {
+  id             String    @id @default(cuid()) @map("id_propina")
+  usuarioId      String    @map("id_usuario")
+  periodo        String
+  valor          Float
+  dataEmissao    DateTime  @map("data_emissao")
+  estado         String
+  multa          Float?
+
+  // Relacionamentos
+  usuario        User @relation(fields: [usuarioId], references: [id])
+  pagamentos     Pagamento[]
+
+  @@map("propinas")
+}
+
+// Tabela: pagamentos
+model Pagamento {
+  id              String   @id @default(cuid()) @map("id_pagamento")
+  propinaId       String   @map("id_propina")
+  usuarioId       String   @map("id_usuario")
+  dataPagamento   DateTime @map("data_pagamento")
+  valorPago       Float    @map("valor_pago")
+  metodoPagamento String   @map("metodo_pagamento")
+  recibo          String?
+
+  // Relacionamentos
+  usuario         User @relation("PagamentosUsuario", fields: [usuarioId], references: [id])
+  propina         Propina @relation(fields: [propinaId], references: [id])
+
+  @@map("pagamentos")
+} 

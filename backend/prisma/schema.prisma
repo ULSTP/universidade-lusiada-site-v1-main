@@ -1,0 +1,397 @@
+// Schema Prisma Simplificado - Backend Sistema Universidade Lusíada
+// Configurado para SQLite (desenvolvimento)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// ========================================
+// SISTEMA DE UTILIZADORES E AUTENTICAÇÃO
+// ========================================
+
+model User {
+  id               String   @id @default(cuid())
+  nome             String
+  email            String   @unique
+  senha            String?
+  tipoUsuario      String   // ADMIN, PROFESSOR, ESTUDANTE, FUNCIONARIO
+  estado           String   @default("ATIVO") // ATIVO, INATIVO, SUSPENSO, BLOQUEADO
+  genero           String?  // MASCULINO, FEMININO, OUTRO
+  dataNascimento   DateTime?
+  telefone         String?
+  avatar           String?
+  numeroEstudante  String?  @unique
+  numeroFuncionario String? @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relacionamentos
+  matriculas       Matricula[]
+  inscricoes       Inscricao[]
+  notas            Nota[]
+  propinas         Propina[]
+  notificacoes     Notificacao[]
+  documentos       Documento[]
+  presencas        Presenca[]
+  
+  // Relacionamentos como professor
+  disciplinasLecionadas TurmaDisciplina[] @relation("Professor")
+  cursosResponsaveis    Curso[] @relation("Coordenador")
+  horariosLecionados    Schedule[] @relation("ScheduleProfessor")
+}
+
+// ========================================
+// ESTRUTURA ACADÉMICA
+// ========================================
+
+model Departamento {
+  id        String @id @default(cuid())
+  nome      String @unique
+  descricao String?
+  codigo    String @unique
+  chefe     String?
+  ativo     Boolean @default(true)
+
+  // Relacionamentos
+  cursos    Curso[]
+  disciplinas Disciplina[]
+}
+
+model Curso {
+  id              String @id @default(cuid())
+  nome            String
+  descricao       String?
+  codigo          String @unique
+  nivel           String // LICENCIATURA, MESTRADO, DOUTORAMENTO, ESPECIALIZACAO, TECNOLOGO
+  duracaoAnos     Int
+  duracaoSemestres Int
+  creditosMinimos Int
+  coordenadorId   String?
+  departamentoId  String
+  ativo           Boolean @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relacionamentos
+  departamento    Departamento @relation(fields: [departamentoId], references: [id])
+  coordenador     User? @relation("Coordenador", fields: [coordenadorId], references: [id])
+  disciplinas     Disciplina[]
+  matriculas      Matricula[]
+  turmas          Turma[]
+}
+
+model Disciplina {
+  id           String @id @default(cuid())
+  nome         String
+  descricao    String?
+  codigo       String @unique
+  cargaHoraria Int
+  creditos     Int
+  semestre     Int
+  anoLetivo    Int
+  obrigatoria  Boolean @default(true)
+  preRequisitos String? // JSON string para SQLite
+  tipo         String @default("OBRIGATORIA") // OBRIGATORIA, OPTATIVA, ESTAGIO, TCC
+  status       String @default("ATIVA") // ATIVA, INATIVA, SUSPENSA
+  departamentoId String?
+  cursoId      String
+  ativo        Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos
+  curso            Curso @relation(fields: [cursoId], references: [id])
+  departamento     Departamento? @relation(fields: [departamentoId], references: [id])
+  turmaDisciplinas TurmaDisciplina[]
+  inscricoes       Inscricao[]
+  notas            Nota[]
+  presencas        Presenca[]
+  horarios         Schedule[]
+}
+
+model Turma {
+  id          String @id @default(cuid())
+  nome        String
+  codigo      String @unique
+  cursoId     String
+  ano         Int
+  semestre    Int
+  anoLetivo   Int
+  maxEstudantes Int?
+  ativo       Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  curso            Curso @relation(fields: [cursoId], references: [id])
+  turmaDisciplinas TurmaDisciplina[]
+  matriculas       Matricula[]
+}
+
+model TurmaDisciplina {
+  id           String @id @default(cuid())
+  turmaId      String
+  disciplinaId String
+  professorId  String
+  sala         String?
+  diaSemana    Int // 1-7 (Segunda-Domingo)
+  horarioInicio String // HH:MM
+  horarioFim   String // HH:MM
+  anoLetivo    Int
+  semestre     Int
+  ativo        Boolean @default(true)
+
+  // Relacionamentos
+  disciplina   Disciplina @relation(fields: [disciplinaId], references: [id])
+  turma        Turma @relation(fields: [turmaId], references: [id])
+  professor    User @relation("Professor", fields: [professorId], references: [id])
+
+  @@unique([turmaId, disciplinaId, anoLetivo, semestre])
+}
+
+// ========================================
+// SISTEMA DE MATRÍCULAS E INSCRIÇÕES
+// ========================================
+
+model Matricula {
+  id            String   @id @default(cuid())
+  numeroMatricula String @unique
+  usuarioId     String
+  cursoId       String
+  turmaId       String
+  anoLetivo     Int
+  semestre      Int
+  status        String   @default("ATIVA") // ATIVA, CANCELADA, TRANCADA, CONCLUIDA, TRANSFERIDA
+  dataMatricula DateTime @default(now())
+  dataConclusao DateTime?
+  observacoes   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relacionamentos
+  usuario       User @relation(fields: [usuarioId], references: [id])
+  curso         Curso @relation(fields: [cursoId], references: [id])
+  turma         Turma @relation(fields: [turmaId], references: [id])
+  inscricoes    Inscricao[]
+  notas         Nota[]
+  propinas      Propina[]
+  presencas     Presenca[]
+}
+
+model Inscricao {
+  id           String   @id @default(cuid())
+  estudanteId  String
+  disciplinaId String
+  turmaId      String?
+  periodo      String
+  anoLetivo    Int
+  semestre     Int
+  status       String   @default("ATIVA") // ATIVA, APROVADO, REPROVADO, CANCELADA, TRANCADA
+  observacoes  String?
+  dataInscricao DateTime @default(now())
+  dataAprovacao DateTime?
+  dataRejeicao DateTime?
+  dataCancelamento DateTime?
+  motivo       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos
+  estudante    User @relation(fields: [estudanteId], references: [id])
+  disciplina   Disciplina @relation(fields: [disciplinaId], references: [id])
+  matricula    Matricula? @relation(fields: [matriculaId], references: [id])
+  matriculaId  String?
+  notas        Nota[]
+  presencas    Presenca[]
+}
+
+// ========================================
+// SISTEMA DE AVALIAÇÃO
+// ========================================
+
+model Nota {
+  id           String   @id @default(cuid())
+  estudanteId  String
+  disciplinaId String
+  matriculaId  String?
+  inscricaoId  String?
+  tipoNota     String // PROVA, TRABALHO, PROJETO, PARTICIPACAO, EXAME_FINAL, OUTRO
+  valor        Float
+  peso         Float    @default(1.0)
+  observacoes  String?
+  dataAvaliacao DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos
+  estudante    User @relation(fields: [estudanteId], references: [id])
+  disciplina   Disciplina @relation(fields: [disciplinaId], references: [id])
+  matricula    Matricula? @relation(fields: [matriculaId], references: [id])
+  inscricao    Inscricao? @relation(fields: [inscricaoId], references: [id])
+}
+
+model Presenca {
+  id           String   @id @default(cuid())
+  estudanteId  String
+  disciplinaId String
+  matriculaId  String?
+  inscricaoId  String?
+  dataAula     DateTime
+  status       String   @default("PRESENTE") // PRESENTE, AUSENTE, ATRASO, JUSTIFICADO
+  justificativa String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos
+  estudante    User @relation(fields: [estudanteId], references: [id])
+  disciplina   Disciplina @relation(fields: [disciplinaId], references: [id])
+  matricula    Matricula? @relation(fields: [matriculaId], references: [id])
+  inscricao    Inscricao? @relation(fields: [inscricaoId], references: [id])
+}
+
+// ========================================
+// SISTEMA FINANCEIRO
+// ========================================
+
+model Propina {
+  id            String   @id @default(cuid())
+  estudanteId   String
+  matriculaId   String?
+  mesReferencia Int
+  anoReferencia Int
+  valor         Float
+  valorDesconto Float    @default(0)
+  valorMulta    Float    @default(0)
+  valorTotal    Float
+  status        String   @default("PENDENTE") // PENDENTE, PAGO, ATRASADO, CANCELADO, ISENTO
+  dataVencimento DateTime
+  dataPagamento DateTime?
+  observacoes   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relacionamentos
+  estudante     User @relation(fields: [estudanteId], references: [id])
+  matricula     Matricula? @relation(fields: [matriculaId], references: [id])
+  pagamentos    Pagamento[]
+}
+
+model Pagamento {
+  id            String   @id @default(cuid())
+  propinaId     String
+  valorPago     Float
+  metodoPagamento String // DINHEIRO, TRANSFERENCIA, CARTAO, CHEQUE, BOLETO, PIX, OUTRO
+  dataPagamento DateTime @default(now())
+  comprovante   String?
+  observacoes   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relacionamentos
+  propina       Propina @relation(fields: [propinaId], references: [id])
+}
+
+// ========================================
+// SISTEMA DE NOTIFICAÇÕES
+// ========================================
+
+model Notificacao {
+  id           String   @id @default(cuid())
+  usuarioId    String
+  titulo       String
+  mensagem     String
+  tipo         String   // SISTEMA, ACADEMICO, FINANCEIRO, EVENTO, AVISO, EMERGENCIA
+  prioridade   String   @default("NORMAL") // BAIXA, NORMAL, ALTA, CRITICA
+  lida         Boolean  @default(false)
+  link         String?
+  metadados    String? // JSON string para SQLite
+  dataEnvio    DateTime @default(now())
+  dataLeitura  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos
+  usuario      User @relation(fields: [usuarioId], references: [id])
+}
+
+// ========================================
+// SISTEMA DE DOCUMENTOS
+// ========================================
+
+model Documento {
+  id           String   @id @default(cuid())
+  usuarioId    String
+  tipo         String   // HISTORICO, DECLARACAO, CERTIFICADO, DIPLOMA, COMPROVANTE_MATRICULA, COMPROVANTE_PAGAMENTO, IDENTIDADE_ESTUDANTIL, OUTRO
+  nome         String
+  descricao    String?
+  arquivo      String
+  tamanho      Int
+  mimeType     String
+  status       String   @default("ATIVO") // ATIVO, ARQUIVADO, EXPIRADO
+  dataUpload   DateTime @default(now())
+  dataExpiracao DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos
+  usuario      User @relation(fields: [usuarioId], references: [id])
+}
+
+// ========================================
+// SISTEMA DE SALAS E HORÁRIOS
+// ========================================
+
+model Sala {
+  id          String @id @default(cuid())
+  nome        String @unique
+  capacidade  Int
+  tipo        String // SALA_AULA, LABORATORIO, AUDITORIO, BIBLIOTECA, OUTRO
+  edificio    String?
+  andar       String?
+  numero      String?
+  equipamentos String? // JSON string para SQLite
+  ativo       Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  horarios    Schedule[]
+}
+
+model Schedule {
+  id           String   @id @default(cuid())
+  disciplinaId String
+  professorId  String
+  salaId       String?
+  diaSemana    Int // 1-7 (Segunda-Domingo)
+  horarioInicio String // HH:MM
+  horarioFim   String // HH:MM
+  anoLetivo    Int
+  semestre     Int
+  status       String   @default("ATIVO") // ATIVO, CANCELADO, SUSPENSO, CONCLUIDO
+  observacoes  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos
+  disciplina   Disciplina @relation(fields: [disciplinaId], references: [id])
+  professor    User @relation("ScheduleProfessor", fields: [professorId], references: [id])
+  sala         Sala? @relation(fields: [salaId], references: [id])
+}
+
+model CalendarioAcademico {
+  id          String @id @default(cuid())
+  titulo      String
+  descricao   String?
+  dataInicio  DateTime
+  dataFim     DateTime
+  tipo        String // FERIADO, RECESSO, AVALIACAO, EVENTO, OUTRO
+  ativo       Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+} 
