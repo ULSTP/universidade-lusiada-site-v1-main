@@ -45,4 +45,10 @@ export class NotificationController {
 
     res.json({ success: true })
   }
+
+  async remove(req: Request, res: Response): Promise<void> {
+    const { id } = req.params
+    await this.prisma.notificacao.delete({ where: { id } })
+    res.json({ success: true })
+  }
 }

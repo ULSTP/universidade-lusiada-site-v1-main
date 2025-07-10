@@ -10,5 +10,6 @@ const controller = new DocumentController();
 
 router.get('/', authenticateToken, controller.list.bind(controller));
 router.post('/', authenticateToken, upload.single('file'), controller.upload.bind(controller));
+router.delete('/:id', authenticateToken, controller.remove.bind(controller));
 
 export default router;

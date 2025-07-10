@@ -39,4 +39,18 @@ export class DocumentController {
 
     res.status(201).json({ success: true, data: doc })
   }
+
+  async remove(req: Request, res: Response): Promise<void> {
+    const { id } = req.params
+    const userId = req.user!.id
+
+    const doc = await this.prisma.documento.findFirst({ where: { id, usuarioId: userId } })
+    if (!doc) {
+      throw ApiError.notFound('Documento não encontrado')
+    }
+
+    await this.prisma.documento.delete({ where: { id } })
+
+    res.json({ success: true })
+  }
 }
