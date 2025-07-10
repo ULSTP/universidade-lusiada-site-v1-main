@@ -394,4 +394,21 @@ model CalendarioAcademico {
   ativo       Boolean @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-} 
+}
+
+// ========================================
+// SISTEMA DE MENSAGENS / CHAT
+// ========================================
+
+model Mensagem {
+  id             String   @id @default(cuid())
+  remetenteId    String
+  destinatarioId String
+  conteudo       String
+  createdAt      DateTime @default(now())
+
+  remetente      User @relation("MensagemRemetente", fields: [remetenteId], references: [id])
+  destinatario   User @relation("MensagemDestinatario", fields: [destinatarioId], references: [id])
+
+  @@index([destinatarioId])
+}
