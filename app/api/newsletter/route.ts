@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 /**
  * Configurações de Rate Limiting
@@ -25,6 +28,14 @@ function isValidEmail(email: string) {
  */
 function sanitize(input: string) {
   return input.replace(/[<>"'`]/g, '');
+}
+
+async function saveToNewsletter(email: string) {
+  await prisma.newsletter.upsert({
+    where: { email },
+    update: { active: true },
+    create: { email }
+  });
 }
 
 /**
@@ -68,8 +79,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'E-mail inválido.' }, { status: 400 });
   }
 
-  // TODO: Implementar salvamento do e-mail
-  // await saveToNewsletter(email)
+  await saveToNewsletter(email);
 
   return NextResponse.json({ success: true });
 } 

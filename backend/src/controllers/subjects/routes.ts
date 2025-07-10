@@ -489,14 +489,4 @@ router.delete(
   subjectController.deleteSubject.bind(subjectController)
 );
 
-// TODO: Implementar SubjectController
-// Placeholder endpoints para disciplinas
-router.get('/', authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    message: 'Endpoint de disciplinas - Em desenvolvimento',
-    data: []
-  });
-});
-
-export default router; 
+export default router;

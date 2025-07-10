@@ -1,16 +1,12 @@
 import { Router } from 'express';
 import { authenticateToken } from '@middlewares/auth';
+import { NotificationController } from './NotificationController';
 
 const router = Router();
+const controller = new NotificationController();
 
-// TODO: Implementar NotificationController
-// Placeholder endpoints para notificações
-router.get('/', authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    message: 'Endpoint de notificações - Em desenvolvimento',
-    data: []
-  });
-});
+router.get('/', authenticateToken, controller.list.bind(controller));
+router.post('/', authenticateToken, controller.create.bind(controller));
+router.post('/:id/read', authenticateToken, controller.markRead.bind(controller));
 
-export default router; 
+export default router;
