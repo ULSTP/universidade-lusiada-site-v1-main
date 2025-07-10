@@ -35,3 +35,9 @@ npx prisma generate
 
 Para mais detalhes consulte a pasta [`docs`](docs/README.md).
 
+## PWA e Otimizações de Performance
+
+- A aplicação utiliza `next-pwa` para gerar o service worker durante o build.
+- Arquivos de API utilizam cache em memória através do middleware `apicache`.
+- Para testar o modo PWA execute `npm run build` e `npm start`.
+

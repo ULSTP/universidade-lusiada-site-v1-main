@@ -25,6 +25,7 @@ import dashboardRoutes from '@controllers/dashboard/routes';
 import notificationRoutes from '@controllers/notifications/routes';
 import documentRoutes from '@controllers/documents/routes';
 import messageRoutes from '@controllers/messages/routes';
+import reportRoutes from '@controllers/reports/routes';
 
 class Server {
   public app: express.Application;
@@ -101,6 +102,7 @@ class Server {
     this.app.use(`${apiPrefix}/notifications`, notificationRoutes);
     this.app.use(`${apiPrefix}/documents`, documentRoutes);
     this.app.use(`${apiPrefix}/messages`, messageRoutes);
+    this.app.use(`${apiPrefix}/reports`, reportRoutes);
 
     // Root endpoint
     this.app.get('/', (req, res) => {

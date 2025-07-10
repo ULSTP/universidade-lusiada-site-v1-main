@@ -47,7 +47,9 @@
     "nodemailer": "^6.9.7",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0",
-    "winston": "^3.11.0"
+    "winston": "^3.11.0",
+    "apicache": "^1.6.3",
+    "axios": "^1.6.8"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
