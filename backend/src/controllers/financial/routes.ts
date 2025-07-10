@@ -1,16 +1,10 @@
 import { Router } from 'express';
 import { authenticateToken } from '@middlewares/auth';
+import { FinancialController } from './FinancialController';
 
 const router = Router();
 
-// TODO: Implementar FinancialController
-// Placeholder endpoints para sistema financeiro
-router.get('/', authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    message: 'Endpoint financeiro - Em desenvolvimento',
-    data: []
-  });
-});
+const controller = new FinancialController();
+router.get('/', authenticateToken, controller.summary.bind(controller));
 
-export default router; 
+export default router;

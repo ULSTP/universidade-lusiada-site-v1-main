@@ -278,17 +278,17 @@ Baseado no diagrama fornecido, criei um sistema completo de gestão universitár
 - [x] APIs principais
 - [x] Interface básica
 
-### **Fase 2: Funcionalidades Avançadas**
-- [ ] Sistema de notificações
-- [ ] Calendário integrado
-- [ ] Upload de documentos
-- [ ] Chat/mensagens
+### **Fase 2: Funcionalidades Avançadas** ✅
+- [x] Sistema de notificações
+- [x] Calendário integrado
+- [x] Upload de documentos
+- [x] Chat/mensagens
 
 ### **Fase 3: Otimizações**
-- [ ] Performance e caching
-- [ ] PWA (Progressive Web App)
-- [ ] Relatórios avançados
-- [ ] Integração com sistemas externos
+- [x] Performance e caching
+- [x] PWA (Progressive Web App)
+- [x] Relatórios avançados
+- [x] Integração com sistemas externos
 
 ---
 
