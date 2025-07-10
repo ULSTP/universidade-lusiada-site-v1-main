@@ -14,6 +14,11 @@ npm install
 cd backend && npm install
 ```
 
+### Configuração de Ambiente
+
+1. Copie o arquivo `.env.example` para `.env` na raiz do projeto.
+2. Ajuste as variáveis conforme sua base de dados e credenciais SMTP.
+
 ## Executar em desenvolvimento
 
 ```bash
@@ -27,7 +32,7 @@ npm run dev
 
 ## Geração do Prisma
 
-Após alterar o `schema.prisma` execute:
+Após configurar o `.env` e alterar o `schema.prisma` execute:
 
 ```bash
 npx prisma generate

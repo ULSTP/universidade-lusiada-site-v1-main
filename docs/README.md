@@ -139,4 +139,18 @@ npm run lint    # Linting
 - Tailwind CSS
 - Framer Motion
 - TypeScript
-- Lucide Icons 
+- Lucide Icons
+
+## Instalação Rápida
+
+1. Copie `.env.example` para `.env` na raiz do projeto
+2. Instale as dependências e gere o Prisma:
+   ```bash
+   npm install
+   cd backend && npm install
+   npx prisma generate
+   ```
+3. Inicie o frontend e backend em terminais separados usando `npm run dev`.
+
+Para mais detalhes consulte o [README principal](../README.md).
+
